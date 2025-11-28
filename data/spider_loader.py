@@ -1,8 +1,28 @@
 """Carrega dataset Spider e extrai schema + conteúdo do banco"""
 import pandas as pd
 import json
+import sqlite3
+import os
 from loguru import logger
 from typing import Dict, List
+
+# Caminho para os arquivos do Spider
+SPIDER_DIR = "spider_data/spider_data"
+TABLES_JSON = os.path.join(SPIDER_DIR, "tables.json")
+DATABASE_DIR = os.path.join(SPIDER_DIR, "database")
+
+# Cache para schemas
+_TABLES_CACHE = None
+
+def load_tables_json():
+    """Carrega tables.json com schemas de todas as databases"""
+    global _TABLES_CACHE
+    if _TABLES_CACHE is None:
+        logger.info(f"Carregando schemas de {TABLES_JSON}...")
+        with open(TABLES_JSON, 'r', encoding='utf-8') as f:
+            _TABLES_CACHE = json.load(f)
+        logger.info(f"{len(_TABLES_CACHE)} databases carregadas")
+    return _TABLES_CACHE
 
 def load_spider_dataset(split="dev"):
     """Carrega dataset Spider"""
@@ -11,22 +31,28 @@ def load_spider_dataset(split="dev"):
     logger.info(f"{len(df)} exemplos carregados")
     return df
 
-def extract_database_schema(db_schema: Dict) -> str:
+def extract_database_schema(db_id: str) -> str:
     """
-    Extrai schema do banco de dados em formato legível.
+    Extrai schema do banco de dados do tables.json.
     Formato: CREATE TABLE statements
     """
-    schema_parts = []
+    tables_data = load_tables_json()
+    
+    # Encontra o schema para o db_id
+    db_schema = None
+    for db in tables_data:
+        if db["db_id"] == db_id:
+            db_schema = db
+            break
     
     if not db_schema:
-        return ""
+        return f"-- Schema not found for database: {db_id}"
     
-    # Extrai informações de tabelas e colunas
+    schema_parts = []
     table_names = db_schema.get("table_names_original", [])
     column_names = db_schema.get("column_names_original", [])
     column_types = db_schema.get("column_types", [])
     primary_keys = db_schema.get("primary_keys", [])
-    foreign_keys = db_schema.get("foreign_keys", [])
     
     # Organiza colunas por tabela
     tables = {}
@@ -54,53 +80,88 @@ def extract_database_schema(db_schema: Dict) -> str:
     
     return "\n\n".join(schema_parts)
 
-def extract_database_content(db_content: List[Dict], k: int = 5) -> str:
+def extract_database_content(db_id: str, k: int = 5) -> str:
     """
-    Extrai K primeiros registros de cada tabela do banco.
-    Formato: SELECT * FROM table LIMIT K
+    Extrai K primeiros registros de cada tabela do banco SQLite.
+    
+    Args:
+        db_id: ID do banco de dados
+        k: Número de registros a extrair por tabela
+    
+    Returns:
+        String formatada com K registros de cada tabela
     """
-    if not db_content:
-        return ""
+    # Caminho para o arquivo SQLite
+    db_path = os.path.join(DATABASE_DIR, db_id, f"{db_id}.sqlite")
+    
+    if not os.path.exists(db_path):
+        return f"-- Database file not found: {db_path}"
     
     content_parts = []
     
-    for table_data in db_content:
-        table_name = table_data.get("table_name", "")
-        rows = table_data.get("rows", [])
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
         
-        if not rows:
-            continue
+        # Lista todas as tabelas
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = cursor.fetchall()
         
-        # Pega K primeiros registros
-        sample_rows = rows[:k]
+        for (table_name,) in tables:
+            try:
+                # Extrai K primeiros registros
+                cursor.execute(f"SELECT * FROM {table_name} LIMIT {k}")
+                rows = cursor.fetchall()
+                
+                if rows:
+                    # Pega nomes das colunas
+                    col_names = [desc[0] for desc in cursor.description]
+                    
+                    content_parts.append(f"Table: {table_name}")
+                    content_parts.append(f"Columns: {', '.join(col_names)}")
+                    
+                    for idx, row in enumerate(rows, 1):
+                        row_str = ' | '.join(str(val) if val is not None else 'NULL' for val in row)
+                        content_parts.append(f"  Row {idx}: {row_str}")
+                    
+                    content_parts.append("")  # Linha em branco
+                    
+            except sqlite3.Error as e:
+                content_parts.append(f"-- Error reading table {table_name}: {e}")
         
-        content_parts.append(f"Table: {table_name}")
-        for idx, row in enumerate(sample_rows, 1):
-            content_parts.append(f"  Row {idx}: {row}")
+        conn.close()
+        
+    except sqlite3.Error as e:
+        return f"-- Error connecting to database: {e}"
     
     return "\n".join(content_parts)
 
 def prepare_examples(df, limit=None):
     """
-    Prepara exemplos com schema e conteúdo do banco
+    Prepara exemplos com schema e conteúdo do banco.
+    
+    Carrega schemas de tables.json e conteúdo de arquivos SQLite.
     """
     if limit:
         df = df.head(limit)
     
     examples = []
     for idx, row in df.iterrows():
-        # Extrai schema e conteúdo
-        db_schema_dict = row.get("db_schema", {})
-        db_content_list = row.get("db_content", [])
+        db_id = row.get("db_id", "")
         
-        schema_str = extract_database_schema(db_schema_dict)
-        content_str = extract_database_content(db_content_list, k=5)
+        logger.info(f"Carregando schema e conteúdo para {db_id}...")
+        
+        # Extrai schema do tables.json
+        schema_str = extract_database_schema(db_id)
+        
+        # Extrai K=5 registros do SQLite
+        content_str = extract_database_content(db_id, k=5)
         
         examples.append({
             "id": idx,
             "question": row.get("question", ""),
             "query": row.get("query", ""),
-            "db_id": row.get("db_id", ""),
+            "db_id": db_id,
             "db_schema": schema_str,
             "db_content": content_str
         })
@@ -111,4 +172,8 @@ if __name__ == "__main__":
     df = load_spider_dataset("dev")
     print("Colunas disponíveis:", df.columns.tolist())
     print("\nPrimeiro exemplo:")
-    print(df.iloc[0].to_dict())
+    example = prepare_examples(df, limit=1)[0]
+    print(f"\nDB ID: {example['db_id']}")
+    print(f"Question: {example['question']}")
+    print(f"\nSchema:\n{example['db_schema'][:300]}...")
+    print(f"\nContent:\n{example['db_content'][:300]}...")
