@@ -2,6 +2,7 @@
 from loguru import logger
 import re
 from typing import Set, Tuple
+from .execution_accuracy import compute_execution_accuracy
 
 def normalize_sql(sql: str) -> str:
     """Normaliza SQL para comparação"""
@@ -88,6 +89,9 @@ def calculate_exact_set_match_accuracy(results: list) -> float:
     logger.info(f"Exact-Set-Match (EM): {matches}/{len(results)} = {accuracy:.2%}")
     return accuracy
 
+def execution_match(pred_sql: str, gold_sql: str, db_path: str) -> bool:
+    return compute_execution_accuracy(db_path, pred_sql, gold_sql) == 1
+
 def calculate_exact_match_accuracy(results: list) -> float:
     """
     Calcula String Exact Match Accuracy.
@@ -118,24 +122,36 @@ def token_overlap(predicted: str, ground_truth: str) -> float:
 
 def evaluate_results(results: list) -> dict:
     """
-    Avalia resultados com métricas EM e EX.
-    
-    Nota: EX (Execution Accuracy) requer execução no banco real.
-    Por enquanto, usamos EM como proxy principal.
+    Avalia resultados com EM, Exact Match, Token Overlap e Execution Accuracy (EX).
     """
     exact_set_match_acc = calculate_exact_set_match_accuracy(results)
     string_exact_match_acc = calculate_exact_match_accuracy(results)
-    
-    # Token overlap como métrica auxiliar
+
+    # Token overlap
     overlaps = [
         token_overlap(r.get("predicted_sql", ""), r.get("ground_truth_sql", ""))
         for r in results
     ]
     avg_overlap = sum(overlaps) / len(overlaps) if overlaps else 0.0
-    
+
+    # Execution Accuracy (EX)
+    ex_scores = []
+    for r in results:
+        pred = r.get("predicted_sql", "")
+        gold = r.get("ground_truth_sql", "")
+        db = r.get("db_path")
+
+        if not db:
+            raise ValueError("Faltando db_path em um dos resultados para calcular EX.")
+
+        ex_scores.append(1 if execution_match(pred, gold, db) else 0)
+
+    ex_accuracy = sum(ex_scores) / len(ex_scores) if ex_scores else 0.0
+
     return {
-        "exact_set_match_accuracy": exact_set_match_acc,  # EM - métrica principal
+        "exact_set_match_accuracy": exact_set_match_acc,
         "string_exact_match_accuracy": string_exact_match_acc,
+        "execution_accuracy": ex_accuracy,          # <--- AQUI
         "average_token_overlap": avg_overlap,
         "total_examples": len(results)
     }
@@ -155,6 +171,7 @@ def compare_methods(rewriting_results: list, zero_shot_results: list) -> dict:
         "improvement": {
             "exact_set_match": rewriting_metrics["exact_set_match_accuracy"] - zero_shot_metrics["exact_set_match_accuracy"],
             "string_exact_match": rewriting_metrics["string_exact_match_accuracy"] - zero_shot_metrics["string_exact_match_accuracy"],
+            "execution_accuracy": rewriting_metrics["execution_accuracy"] - zero_shot_metrics["execution_accuracy"],   # <--- AQUI
             "token_overlap": rewriting_metrics["average_token_overlap"] - zero_shot_metrics["average_token_overlap"]
         }
     }

@@ -163,7 +163,8 @@ def prepare_examples(df, limit=None):
             "query": row.get("query", ""),
             "db_id": db_id,
             "db_schema": schema_str,
-            "db_content": content_str
+            "db_content": content_str,
+            "db_path": os.path.join(DATABASE_DIR, db_id, f"{db_id}.sqlite")
         })
     
     return examples

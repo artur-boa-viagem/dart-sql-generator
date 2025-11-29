@@ -51,6 +51,7 @@ def run_experiment(num_examples=10):
             zero_shot_results.append({
                 "example_id": ex["id"],
                 "db_id": ex["db_id"],
+                "db_path": ex["db_path"],
                 "original_question": ex["question"],
                 "predicted_sql": result["generated_sql"],
                 "ground_truth_sql": ex["query"]
@@ -60,6 +61,7 @@ def run_experiment(num_examples=10):
             zero_shot_results.append({
                 "example_id": ex["id"],
                 "db_id": ex["db_id"],
+                "db_path": ex["db_path"],
                 "original_question": ex["question"],
                 "predicted_sql": "",
                 "ground_truth_sql": ex["query"],
@@ -82,6 +84,7 @@ def run_experiment(num_examples=10):
             rewriting_results.append({
                 "example_id": ex["id"],
                 "db_id": ex["db_id"],
+                "db_path": ex["db_path"],
                 "original_question": ex["question"],
                 "rewritten_question": result["rewritten_question"],
                 "predicted_sql": result["generated_sql"],
@@ -92,6 +95,7 @@ def run_experiment(num_examples=10):
             rewriting_results.append({
                 "example_id": ex["id"],
                 "db_id": ex["db_id"],
+                "db_path": ex["db_path"],
                 "original_question": ex["question"],
                 "rewritten_question": "",
                 "predicted_sql": "",
@@ -110,16 +114,19 @@ def run_experiment(num_examples=10):
     
     logger.info(f"\nBASELINE 1 - Zero-Shot (Questão Original + Schema):")
     logger.info(f"  EM (Exact-Set-Match): {comparison['baseline_1_zero_shot']['exact_set_match_accuracy']:.2%}")
+    logger.info(f"  Execution Accuracy: {comparison['baseline_1_zero_shot']['execution_accuracy']:.2%}")
     logger.info(f"  String Exact Match: {comparison['baseline_1_zero_shot']['string_exact_match_accuracy']:.2%}")
     logger.info(f"  Token Overlap: {comparison['baseline_1_zero_shot']['average_token_overlap']:.2%}")
     
     logger.info(f"\nBASELINE 2 - RW-Enhanced (Questão Reescrita + Schema):")
     logger.info(f"  EM (Exact-Set-Match): {comparison['baseline_2_rw_enhanced']['exact_set_match_accuracy']:.2%}")
+    logger.info(f"  Execution Accuracy: {comparison['baseline_2_rw_enhanced']['execution_accuracy']:.2%}")
     logger.info(f"  String Exact Match: {comparison['baseline_2_rw_enhanced']['string_exact_match_accuracy']:.2%}")
     logger.info(f"  Token Overlap: {comparison['baseline_2_rw_enhanced']['average_token_overlap']:.2%}")
     
     logger.info(f"\nMELHORIA (RW-Enhanced - Zero-Shot):")
     logger.info(f"  EM: {comparison['improvement']['exact_set_match']:+.2%}")
+    logger.info(f"  Execution Accuracy: {comparison['improvement']['execution_accuracy']:+.2%}")
     logger.info(f"  String Match: {comparison['improvement']['string_exact_match']:+.2%}")
     logger.info(f"  Token Overlap: {comparison['improvement']['token_overlap']:+.2%}")
     logger.info("="*80)
