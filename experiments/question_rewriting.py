@@ -1,6 +1,8 @@
 """Question Rewriting seguindo metodologia DART-SQL"""
 from loguru import logger
 from openai import OpenAI
+from pathlib import Path
+import json
 from core.config import settings
 
 client = OpenAI(api_key=settings.PROJETO_TAES_OPENAI_API_KEY)
@@ -159,3 +161,69 @@ def generate_sql_with_rewriting(question: str, db_schema: str, db_content: str) 
         "rewritten_question": rewritten_question,
         "generated_sql": sql
     }
+
+
+def load_schema_from_file(file_path: str) -> str:
+    """
+    Carrega schema de um arquivo (SQL, JSON, ou YAML).
+    
+    Args:
+        file_path: Caminho para o arquivo de schema
+    
+    Returns:
+        String contendo o schema
+    """
+    try:
+        path = Path(file_path)
+        
+        if not path.exists():
+            raise FileNotFoundError(f"Schema file not found: {file_path}")
+        
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        logger.info(f"Schema carregado de: {file_path}")
+        return content
+        
+    except Exception as e:
+        logger.error(f"Erro ao carregar schema: {e}")
+        raise
+
+
+def load_schema_and_content_from_file(file_path: str) -> tuple[str, str]:
+    """
+    Carrega schema E conteúdo do banco de um arquivo JSON.
+    O arquivo JSON deve ter a seguinte estrutura:
+    {
+      "schema": "CREATE TABLE ...",
+      "records": "INSERT INTO ... VALUES (...); INSERT INTO ... VALUES (...);"
+    }
+    
+    Args:
+        file_path: Caminho para o arquivo JSON com schema e conteúdo
+    
+    Returns:
+        Tuple (schema, db_content) - ambas como strings
+    """
+    try:
+        path = Path(file_path)
+        
+        if not path.exists():
+            raise FileNotFoundError(f"Schema file not found: {file_path}")
+        
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Extrair schema e records do JSON
+        schema = data.get("schema", "").strip()
+        db_content = data.get("records", "").strip()
+        
+        logger.info(f"Schema e conteúdo carregados de: {file_path}")
+        return schema, db_content
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Erro ao decodificar JSON: {e}")
+        raise ValueError(f"Invalid JSON format in {file_path}: {e}")
+    except Exception as e:
+        logger.error(f"Erro ao carregar schema e conteúdo: {e}")
+        raise

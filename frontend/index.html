@@ -338,10 +338,18 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="schema-inline">SQL Schema (Optional)</label>
+                        <label for="schema-inline">SQL Schema *</label>
                         <textarea id="schema-inline" placeholder="e.g., CREATE TABLE equipment_maintenance (equipment_type VARCHAR(255), maintenance_frequency INT);"></textarea>
                         <div class="help-text">
                             Paste your CREATE TABLE statements here. You can include multiple tables separated by semicolons.
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="db-content-inline">Sample Database Records (Optional)</label>
+                        <textarea id="db-content-inline" placeholder="e.g., SELECT * FROM equipment_maintenance LIMIT 5;\n\nequipment_type | maintenance_frequency\npump | 30\nmotor | 15"></textarea>
+                        <div class="help-text">
+                            Paste sample records from your database to improve question rewriting. Include the first few rows from relevant tables.
                         </div>
                     </div>
                 </div>
@@ -354,10 +362,11 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="schema-file">Schema File Path (Optional)</label>
-                        <input type="text" id="schema-file" placeholder="e.g., /path/to/schema.json or /path/to/schema.sql">
+                        <label for="schema-file">Schema File Path *</label>
+                        <input type="text" id="schema-file" placeholder="e.g., /path/to/schema.json or ./schema_example.json">
                         <div class="help-text">
-                            Supports JSON, YAML, and SQL files.
+                            JSON file with "schema" and "records" keys. Records should be INSERT statements.
+                            See example: schema_example.json
                         </div>
                     </div>
                 </div>
@@ -458,16 +467,23 @@
             if (activeTab === 'inline') {
                 prompt = document.getElementById('prompt').value.trim();
                 const schema = document.getElementById('schema-inline').value.trim();
+                const dbContent = document.getElementById('db-content-inline').value.trim();
 
                 if (!prompt) {
                     showError('Please enter a question');
                     return;
                 }
 
+                if (!schema) {
+                    showError('Please provide SQL schema');
+                    return;
+                }
+
                 endpoint = `${API_BASE_URL}/generate-sql`;
                 payload = {
                     prompt: prompt,
-                    schema: schema || null
+                    schema: schema,
+                    db_content: dbContent || null
                 };
             } else {
                 prompt = document.getElementById('prompt-file').value.trim();
@@ -478,10 +494,15 @@
                     return;
                 }
 
+                if (!schemaFile) {
+                    showError('Please provide schema file path');
+                    return;
+                }
+
                 endpoint = `${API_BASE_URL}/generate-sql-with-file`;
                 payload = {
                     prompt: prompt,
-                    schema_file_path: schemaFile || null
+                    schema_file_path: schemaFile
                 };
             }
 
@@ -549,6 +570,7 @@
         function clearForm() {
             document.getElementById('prompt').value = '';
             document.getElementById('schema-inline').value = '';
+            document.getElementById('db-content-inline').value = '';
             document.getElementById('prompt-file').value = '';
             document.getElementById('schema-file').value = '';
             document.getElementById('output').textContent = 'SQL will appear here...';
