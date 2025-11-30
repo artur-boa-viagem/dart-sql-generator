@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SQL Generator</title>
+    <title>DART-SQL</title>
     <style>
         * {
             margin: 0;
@@ -307,8 +307,12 @@
 <body>
     <div class="container">
         <header>
-            <h1>SQL Generator</h1>
+            <h1>Text-to-SQL with DART-SQL</h1>
             <p class="subtitle">Transform natural language into SQL queries</p>
+            <div id="connection-status" style="margin-top: 15px; font-size: 0.9em;">
+                <span id="status-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #888; margin-right: 8px;"></span>
+                <span id="status-text">Checking connection...</span>
+            </div>
         </header>
 
         <div class="main-content">
@@ -384,15 +388,49 @@
 
     <script>
         const API_BASE_URL = 'http://localhost:8000/api/v1';
+        const HEALTH_CHECK_URL = 'http://localhost:8000/health';
+
+        // Check connection status on page load
+        async function checkConnection() {
+            try {
+                const response = await fetch(HEALTH_CHECK_URL);
+                if (response.ok) {
+                    setConnectionStatus(true);
+                } else {
+                    setConnectionStatus(false);
+                }
+            } catch (error) {
+                setConnectionStatus(false);
+            }
+        }
+
+        function setConnectionStatus(isConnected) {
+            const indicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            
+            if (isConnected) {
+                indicator.style.backgroundColor = '#90ee90';
+                statusText.textContent = 'Connected to backend';
+                statusText.style.color = '#90ee90';
+            } else {
+                indicator.style.backgroundColor = '#ff6b6b';
+                statusText.textContent = 'Backend disconnected';
+                statusText.style.color = '#ff6b6b';
+            }
+        }
+
+        // Check connection on load and every 10 seconds
+        checkConnection();
+        setInterval(checkConnection, 10000);
 
         function switchTab(tabName) {
             // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
+            for (const tab of document.querySelectorAll('.tab-content')) {
                 tab.classList.remove('active');
-            });
-            document.querySelectorAll('.tab-button').forEach(btn => {
+            }
+            for (const btn of document.querySelectorAll('.tab-button')) {
                 btn.classList.remove('active');
-            });
+            }
 
             // Show selected tab
             document.getElementById(tabName).classList.add('active');
