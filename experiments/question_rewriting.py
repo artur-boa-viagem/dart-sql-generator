@@ -1,0 +1,161 @@
+"""Question Rewriting seguindo metodologia DART-SQL"""
+from loguru import logger
+from openai import OpenAI
+from core.config import settings
+
+client = OpenAI(api_key=settings.PROJETO_TAES_OPENAI_API_KEY)
+
+# Modelo usado no experimento
+MODEL = "gpt-5-nano"
+
+def build_rewriting_prompt(question: str, db_content: str) -> str:
+    """
+    Prompt SIMPLIFICADO para teste - GPT-5 nano parece ter problemas com prompts longos
+    """
+    
+    return f"""Rewrite the question to make it clearer and more specific using the database content provided.
+
+Database content (first records):
+{db_content}
+
+Original question: {question}
+
+Rewritten question (in English, only the question without explanations):"""
+
+def rewrite_question(question: str, db_content: str = "") -> str:
+    """
+    Reescreve pergunta usando LLM com conteúdo do banco.
+    
+    Args:
+        question: Questão original
+        db_content: K=5 registros de cada tabela
+    
+    Returns:
+        Questão reescrita
+    """
+    logger.info(f"Reescrevendo: {question}")
+    
+    prompt = build_rewriting_prompt(question, db_content)
+    
+    # DEBUG: Verificar tamanho do prompt
+    logger.debug(f"📏 Tamanho do prompt: {len(prompt)} caracteres")
+    logger.debug(f"📏 Primeiros 2000 chars: {prompt[:2000]}")
+    
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_completion_tokens=2000  # Aumentado de 500 para 2000
+        )
+        
+        rewritten = response.choices[0].message.content.strip()
+        
+        # Limpar prefixos comuns que o modelo pode adicionar
+        prefixes = ["Pergunta reescrita:", "Reescrita:", "Resposta:"]
+        for prefix in prefixes:
+            if rewritten.startswith(prefix):
+                rewritten = rewritten[len(prefix):].strip()
+        
+        # DEBUG: Log completo da resposta
+        logger.debug(f"Resposta do modelo (completa): '{rewritten}'")
+        logger.debug(f"Tamanho da resposta: {len(rewritten)} caracteres")
+        logger.debug(f"Finish reason: {response.choices[0].finish_reason}")
+        
+        if not rewritten:
+            logger.warning("⚠️ Modelo retornou string vazia! Usando questão original.")
+            return question
+        
+        logger.info(f"Reescrita: {rewritten}")
+        return rewritten
+        
+    except Exception as e:
+        logger.error(f"Erro ao reescrever: {e}")
+        # Fallback: retorna original
+        return question
+
+def generate_sql_from_question(question: str, db_schema: str) -> str:
+    """
+    Gera SQL a partir da pergunta (original ou reescrita) + schema.
+    Usa o mesmo prompt zero-shot para ambos os baselines.
+    
+    Args:
+        question: Questão (original ou reescrita)
+        db_schema: Schema do banco (CREATE TABLE statements)
+    
+    Returns:
+        Query SQL gerada
+    """
+    logger.info(f"Gerando SQL para: {question}")
+    
+    # Prompt Zero-Shot padrão (similar ao DAIL-SQL sem exemplos)
+    system_prompt = """You are a SQL expert. Generate a SQL query based on the question and database schema provided.
+
+Rules:
+- Return ONLY the SQL query, no explanations or translations
+- The question may be in Portuguese or English - generate SQL regardless
+- Use proper SQL syntax
+- Follow the schema exactly as provided
+- Do NOT translate or explain the question, just generate the SQL"""
+
+    user_prompt = f"""### Database Schema:
+{db_schema}
+
+### Question:
+{question}
+
+### SQL Query:"""
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_completion_tokens=2000  # Aumentado de 500 para 2000
+        )
+        
+        sql = response.choices[0].message.content.strip()
+        
+        # DEBUG: Log resposta antes de processar
+        logger.debug(f"SQL bruto recebido: '{sql[:200]}'")
+        logger.debug(f"Finish reason: {response.choices[0].finish_reason}")
+        
+        # Remove markdown se presente
+        if sql.startswith("```"):
+            lines = sql.split("\n")
+            sql = "\n".join(lines[1:-1]) if len(lines) > 2 else sql
+            sql = sql.replace("```sql", "").replace("```", "").strip()
+        
+        if not sql:
+            logger.warning(f"⚠️ SQL vazio após processar! Questão era: {question[:100]}")
+        
+        logger.info(f"SQL gerado: {sql[:100]}...")
+        return sql
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar SQL: {e}")
+        raise
+
+def generate_sql_with_rewriting(question: str, db_schema: str, db_content: str) -> dict:
+    """
+    Pipeline RW-Enhanced Zero-Shot:
+    1. Reescreve a questão usando conteúdo do banco
+    2. Gera SQL da questão reescrita + schema
+    
+    Returns:
+        Dict com questão original, reescrita e SQL gerado
+    """
+    # Etapa 1: Question Rewriting
+    rewritten_question = rewrite_question(question, db_content)
+    
+    # Etapa 2: SQL Generation da questão reescrita
+    sql = generate_sql_from_question(rewritten_question, db_schema)
+    
+    return {
+        "original_question": question,
+        "rewritten_question": rewritten_question,
+        "generated_sql": sql
+    }
