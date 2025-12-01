@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DART-SQL</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px 0;
+            border-bottom: 2px solid #333;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            color: #888;
+            margin-top: 10px;
+            font-size: 0.95em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background-color: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: #555;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+        }
+
+        .card h2 {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b0b0b0;
+            font-weight: 500;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            background-color: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #666;
+            background-color: #111;
+            box-shadow: 0 0 10px rgba(200, 200, 200, 0.1);
+        }
+
+        textarea {
+            min-height: 120px;
+            line-height: 1.5;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2a2a2a;
+            border-color: #888;
+        }
+
+        .btn-generate {
+            background-color: #222;
+            border-color: #666;
+        }
+
+        .btn-generate:hover {
+            background-color: #333;
+            border-color: #999;
+            box-shadow: 0 0 15px rgba(200, 200, 200, 0.1);
+        }
+
+        .btn-clear {
+            background-color: #1a1a1a;
+        }
+
+        .btn-clear:hover {
+            background-color: #2a2a2a;
+        }
+
+        .output-section {
+            grid-column: 1 / -1;
+        }
+
+        .output-box {
+            background-color: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 20px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        .output-box.empty {
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .output-box.success {
+            border-color: #444;
+            color: #90ee90;
+        }
+
+        .output-box.error {
+            border-color: #553333;
+            color: #ff6b6b;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #888;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #333;
+            border-top-color: #666;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .copy-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            font-size: 0.8em;
+            background-color: #222;
+            border: 1px solid #444;
+        }
+
+        .copy-button:hover {
+            background-color: #333;
+            border-color: #666;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #888;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: #e0e0e0;
+            border-bottom-color: #666;
+        }
+
+        .tab-button:hover {
+            color: #b0b0b0;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .help-text {
+            color: #666;
+            font-size: 0.85em;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Text-to-SQL with DART-SQL</h1>
+            <p class="subtitle">Transform natural language into SQL queries</p>
+            <div id="connection-status" style="margin-top: 15px; font-size: 0.9em;">
+                <span id="status-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #888; margin-right: 8px;"></span>
+                <span id="status-text">Checking connection...</span>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Input Section -->
+            <div class="card">
+                <h2>Input</h2>
+
+                <!-- Tabs for different input methods -->
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab('inline')">
+                        Inline Schema
+                    </button>
+                    <button class="tab-button" onclick="switchTab('file')">
+                        File Path
+                    </button>
+                </div>
+
+                <!-- Inline Schema Tab -->
+                <div id="inline" class="tab-content active">
+                    <div class="form-group">
+                        <label for="prompt">Natural Language Question *</label>
+                        <textarea id="prompt" placeholder="e.g., What is the maintenance frequency for equipment type 'pump'?"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="schema-inline">SQL Schema *</label>
+                        <textarea id="schema-inline" placeholder="e.g., CREATE TABLE equipment_maintenance (equipment_type VARCHAR(255), maintenance_frequency INT);"></textarea>
+                        <div class="help-text">
+                            Paste your CREATE TABLE statements here. You can include multiple tables separated by semicolons.
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="db-content-inline">Sample Database Records (Optional)</label>
+                        <textarea id="db-content-inline" placeholder="e.g., SELECT * FROM equipment_maintenance LIMIT 5;\n\nequipment_type | maintenance_frequency\npump | 30\nmotor | 15"></textarea>
+                        <div class="help-text">
+                            Paste sample records from your database to improve question rewriting. Include the first few rows from relevant tables.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Path Tab -->
+                <div id="file" class="tab-content">
+                    <div class="form-group">
+                        <label for="prompt-file">Natural Language Question *</label>
+                        <textarea id="prompt-file" placeholder="e.g., What is the maintenance frequency for equipment type 'pump'?"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="schema-file">Schema File Path *</label>
+                        <input type="text" id="schema-file" placeholder="e.g., /path/to/schema.json or ./schema_example.json">
+                        <div class="help-text">
+                            JSON file with "schema" and "records" keys. Records should be INSERT statements.
+                            See example: schema_example.json
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-generate" onclick="generateSQL()">Generate SQL</button>
+                    <button class="btn-clear" onclick="clearForm()">Clear</button>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Generating SQL...</p>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <div class="card">
+                <h2>Output</h2>
+                <div style="position: relative;">
+                    <button class="copy-button" onclick="copySQL()" id="copy-btn" style="display: none;">Copy</button>
+                    <div class="output-box empty" id="output">
+                        SQL will appear here...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000/api/v1';
+        const HEALTH_CHECK_URL = 'http://localhost:8000/health';
+
+        // Check connection status on page load
+        async function checkConnection() {
+            try {
+                const response = await fetch(HEALTH_CHECK_URL);
+                if (response.ok) {
+                    setConnectionStatus(true);
+                } else {
+                    setConnectionStatus(false);
+                }
+            } catch (error) {
+                setConnectionStatus(false);
+            }
+        }
+
+        function setConnectionStatus(isConnected) {
+            const indicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            
+            if (isConnected) {
+                indicator.style.backgroundColor = '#90ee90';
+                statusText.textContent = 'Connected to backend';
+                statusText.style.color = '#90ee90';
+            } else {
+                indicator.style.backgroundColor = '#ff6b6b';
+                statusText.textContent = 'Backend disconnected';
+                statusText.style.color = '#ff6b6b';
+            }
+        }
+
+        // Check connection on load and every 10 seconds
+        checkConnection();
+        setInterval(checkConnection, 10000);
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            for (const tab of document.querySelectorAll('.tab-content')) {
+                tab.classList.remove('active');
+            }
+            for (const btn of document.querySelectorAll('.tab-button')) {
+                btn.classList.remove('active');
+            }
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function getActiveTab() {
+            const tabs = document.querySelectorAll('.tab-button');
+            for (let tab of tabs) {
+                if (tab.classList.contains('active')) {
+                    return tab.textContent.includes('Inline') ? 'inline' : 'file';
+                }
+            }
+            return 'inline';
+        }
+
+        async function generateSQL() {
+            const outputBox = document.getElementById('output');
+            const loading = document.getElementById('loading');
+            const copyBtn = document.getElementById('copy-btn');
+
+            const activeTab = getActiveTab();
+            let prompt, endpoint, payload;
+
+            if (activeTab === 'inline') {
+                prompt = document.getElementById('prompt').value.trim();
+                const schema = document.getElementById('schema-inline').value.trim();
+                const dbContent = document.getElementById('db-content-inline').value.trim();
+
+                if (!prompt) {
+                    showError('Please enter a question');
+                    return;
+                }
+
+                if (!schema) {
+                    showError('Please provide SQL schema');
+                    return;
+                }
+
+                endpoint = `${API_BASE_URL}/generate-sql`;
+                payload = {
+                    prompt: prompt,
+                    schema: schema,
+                    db_content: dbContent || null
+                };
+            } else {
+                prompt = document.getElementById('prompt-file').value.trim();
+                const schemaFile = document.getElementById('schema-file').value.trim();
+
+                if (!prompt) {
+                    showError('Please enter a question');
+                    return;
+                }
+
+                if (!schemaFile) {
+                    showError('Please provide schema file path');
+                    return;
+                }
+
+                endpoint = `${API_BASE_URL}/generate-sql-with-file`;
+                payload = {
+                    prompt: prompt,
+                    schema_file_path: schemaFile
+                };
+            }
+
+            loading.style.display = 'block';
+            outputBox.classList.remove('success', 'error');
+            copyBtn.style.display = 'none';
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                loading.style.display = 'none';
+
+                if (data.error) {
+                    showError(data.error);
+                } else if (data.SQL) {
+                    showSuccess(data.SQL);
+                    copyBtn.style.display = 'block';
+                } else {
+                    showError('No SQL generated');
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                showError(`Connection error: ${error.message}`);
+            }
+        }
+
+        function showSuccess(sql) {
+            const outputBox = document.getElementById('output');
+            outputBox.textContent = sql;
+            outputBox.classList.remove('empty', 'error');
+            outputBox.classList.add('success');
+        }
+
+        function showError(message) {
+            const outputBox = document.getElementById('output');
+            outputBox.textContent = message;
+            outputBox.classList.remove('empty', 'success');
+            outputBox.classList.add('error');
+        }
+
+        function copySQL() {
+            const outputBox = document.getElementById('output');
+            const sql = outputBox.textContent;
+
+            if (sql && sql !== 'SQL will appear here...') {
+                navigator.clipboard.writeText(sql).then(() => {
+                    const copyBtn = document.getElementById('copy-btn');
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                    }, 2000);
+                });
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('prompt').value = '';
+            document.getElementById('schema-inline').value = '';
+            document.getElementById('db-content-inline').value = '';
+            document.getElementById('prompt-file').value = '';
+            document.getElementById('schema-file').value = '';
+            document.getElementById('output').textContent = 'SQL will appear here...';
+            document.getElementById('output').classList.add('empty');
+            document.getElementById('output').classList.remove('success', 'error');
+            document.getElementById('copy-btn').style.display = 'none';
+        }
+
+        // Allow Enter key to generate SQL (Ctrl+Enter)
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                generateSQL();
+            }
+        });
+    </script>
+</body>
+</html>
